@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Trashcan from "./assets/trashcan.svg";
 import EditIcon from "./assets/edit.svg";
+import axios from "axios";
 
 function App() {
   const [todos, setTodos] = useState([]);
@@ -12,10 +13,19 @@ function App() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch("https://dummyjson.com/todos?limit=3");
-        const data = await response.json();
-        console.log(data.todos);
+        // const response = await fetch("https://dummyjson.com/todos?limit=3"); // API Endpoint
+        // const response2 = await fetch("https://dummyjson.com/todos?limit=3", {
+        //   method: "get"
+        // }); // API Endpoint
+        // console.log(response);
+        // const data = await response.json();
+        // console.log(data.todos);
+        // setTodos(data.todos);
+
+        const response = await axios.get("https://dummyjson.com/todos?limit=5");
+        const data = response.data;
         setTodos(data.todos);
+        console.log(data.todos);
       } catch (error) {
         console.log(error);
       }
@@ -24,67 +34,99 @@ function App() {
     fetchData();
   }, []);
 
-  const handleToggle = (itemId) => {
-    // გადავუაროთ todo სიას, ვიპოვოთ ელემენტი, რომელზეც მომხმარებელი აჭერს
-    // განვაახლოთ completed მნიშვნელობა საპირისპიროთი
-    const updatedTodos = todos.map((item) =>
-      item.id === itemId ? { ...item, completed: !item.completed } : item,
-    );
-    setTodos(updatedTodos);
-    // console.log(itemId, updatedTodos);
-  };
-
-  const handleDelete = (itemId) => {
-    // გადავუაროთ todo სიას და გავფილტროთ ელემენტები, id-ზე დაყრდნობით
-    const filteredTodos = todos.filter((item) => item.id !== itemId);
-    setTodos(filteredTodos);
-  };
-
-  const addTodo = () => {
+  // დამატება - POST METHOD
+  const addTodo = async () => {
     const value = inputRef.current.value;
 
     if (value === "") return;
 
-    const newTodo = {
-      completed: false,
-      id: Date.now(),
-      todo: value,
-    };
-
-    // todos.push(newTodo);
-    const updatedTodos = [newTodo, ...todos];
-    console.log(updatedTodos);
-    setTodos(updatedTodos);
-    inputRef.current.value = "";
-    // todos - [1, 2, 3] - მისამართი A
-    // todos.push(4) - [1, 2, 3, 4] - მისამართი A
-    // მისამართი A === მისამართი A
+    try {
+      const response = await axios.post(`https://dummyjson.com/todos/add`, {
+        completed: false,
+        todo: value,
+        userId: 13,
+      });
+      console.log(response);
+      const data = response.data;
+      const updatedTodos = [data, ...todos];
+      setTodos(updatedTodos);
+      inputRef.current.value = "";
+    } catch (error) {
+      console.log(error);
+    }
   };
 
-  // const num1 = 5;
-  // const num2 = 5;
-  // console.log(num1 === num2);
-  // const var1 = "Georgia";
-  // const var2 = "Georgia";
-  // console.log(var1 === var2);
-
-  // const arr1 = [1, 2, 3]; // მისამართი C
-  // const arr2 = [1, 2, 3]; // მისამართი D
-  // console.log(arr1 === arr2); // C !== D
+  // განახლება - PATCH
+  const handleToggle = async (itemId) => {
+    const todo = todos.find((item) => item.id === itemId);
+    console.log(todo);
+    try {
+      const response = await axios.patch(
+        `https://dummyjson.com/todos/${itemId}`,
+        {
+          completed: !todo.completed,
+        },
+      );
+      const data = response.data;
+      const updatedTodos = todos.map((item) =>
+        item.id === itemId ? data : item,
+      );
+      setTodos(updatedTodos);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   const handleEdit = (item) => {
     setSelectedTodo(item);
   };
 
-  const handleSave = (todoId) => {
+  // განახლება - PATCH
+  const handleSave = async (todoId) => {
     const newTodoValue = editInputRef.current.value;
 
-    const updatedTodos = todos.map((item) =>
-      item.id === todoId ? { ...item, todo: newTodoValue } : item,
-    );
-    setTodos(updatedTodos);
-    setSelectedTodo(null);
+    try {
+      const response = await axios.patch(
+        `https://dummyjson.com/todos/${todoId}`,
+        {
+          todo: newTodoValue,
+        },
+      );
+      const data = response.data;
+      const updatedTodos = todos.map((item) =>
+        item.id === todoId ? data : item,
+      );
+      setTodos(updatedTodos);
+      setSelectedTodo(null);
+    } catch (error) {
+      console.log(error);
+    }
   };
+
+  // წაშლა - DELETE
+  const handleDelete = async (itemId) => {
+    try {
+      await axios.delete(`https://dummyjson.com/todos/${itemId}`);
+      const filteredTodos = todos.filter((item) => item.id !== itemId);
+      setTodos(filteredTodos);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  // Client = React => fetch => request => API => server => database
+  // Server => response
+  // API = Application Programming Interface
+  // REST API => ინფორმაციის წამოღება - /todos, ინფორმაციის განახლება - /todos/X,
+  // ინფორმაციის წაშლა - /todos/X, ინფორმაციის დამატება - /todos/add
+
+  // HTTP = წესებისა/პროტოკოლის ერთობლიობა
+  // Methods: POST - დამატება, GET - წამოღება, PATCH - განახლება, DELETE - წაშლა
+  // API endpoint = url, რომელზე წვდომასაც სერვერი გვაძლევს
+
+  // CRUD ოპერაციები - Create, Read, Update, Delete
+  // https://dummyjson.com/todos/21, method: delete, method: patch
+
   return (
     <>
       {selectedTodo && (
